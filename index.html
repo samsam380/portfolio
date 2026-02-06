@@ -1,0 +1,1735 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Portfolio Tracker (Browser-only)</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#0c172c;
+      --text:#e7eefc;
+      --muted:#a9b7d6;
+      --line:rgba(255,255,255,.10);
+      --accent:#6aa7ff;
+      --good:#39d98a;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --chip:#132345;
+      --focus:rgba(106,167,255,.25);
+      --shadow: 0 10px 25px rgba(0,0,0,.25);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    [data-theme="light"]{
+      --bg:#f4f7ff;
+      --panel:#ffffff;
+      --panel2:#f8fbff;
+      --text:#0e1a33;
+      --muted:#50628a;
+      --line:rgba(0,0,0,.10);
+      --accent:#2b6cff;
+      --chip:#eef3ff;
+      --focus:rgba(43,108,255,.18);
+      --shadow: 0 10px 25px rgba(13,26,51,.12);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 700px at 25% 10%, rgba(106,167,255,.22), transparent 55%),
+                  radial-gradient(900px 650px at 85% 30%, rgba(57,217,138,.12), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+      line-height:1.35;
+    }
+
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,0));
+      border-bottom:1px solid var(--line);
+    }
+    [data-theme="light"] header{
+      background: linear-gradient(to bottom, rgba(244,247,255,.85), rgba(244,247,255,0));
+    }
+    .wrap{
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 14px 14px 34px;
+    }
+    .topbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .title{
+      display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    }
+    h1{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: .3px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size: 12px;
+    }
+    .btnrow{
+      display:flex; gap:8px; flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    button, select, input{
+      font:inherit;
+      color:var(--text);
+    }
+    button{
+      border:1px solid var(--line);
+      background: linear-gradient(to bottom, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      padding:8px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      box-shadow: var(--shadow);
+      transition: transform .05s ease, border-color .2s ease, background .2s ease;
+      white-space:nowrap;
+    }
+    button:hover{ border-color: rgba(106,167,255,.55); }
+    button:active{ transform: translateY(1px); }
+    .primary{
+      border-color: rgba(106,167,255,.55);
+      background: linear-gradient(to bottom, rgba(106,167,255,.30), rgba(106,167,255,.12));
+    }
+    .danger{
+      border-color: rgba(255,107,107,.55);
+      background: linear-gradient(to bottom, rgba(255,107,107,.22), rgba(255,107,107,.10));
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      background: var(--chip);
+      border:1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      flex-wrap:wrap;
+    }
+    .chip label{
+      color:var(--muted);
+      font-size:12px;
+    }
+    .chip input, .chip select{
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      padding:6px 8px;
+      border-radius:10px;
+      outline:none;
+      min-width: 120px;
+    }
+    [data-theme="light"] .chip input,
+    [data-theme="light"] .chip select{
+      background: rgba(0,0,0,.04);
+    }
+    .chip input:focus, .chip select:focus{
+      box-shadow: 0 0 0 4px var(--focus);
+      border-color: rgba(106,167,255,.6);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(to bottom, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    [data-theme="light"] .card{
+      background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(248,251,255,1));
+    }
+    .cardhead{
+      padding: 12px 14px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .cardhead h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+    .cardhead .hint{
+      color:var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    .cardbody{ padding: 12px 14px 14px; }
+
+    .statusline{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top: 6px;
+      color:var(--muted);
+      font-size: 12px;
+    }
+    .dot{
+      width:8px; height:8px;
+      border-radius:999px;
+      background: var(--warn);
+      display:inline-block;
+      margin-right:6px;
+    }
+    .dot.good{ background: var(--good); }
+    .dot.bad{ background: var(--bad); }
+
+    /* Table */
+    .tablewrap{
+      overflow:auto;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+    [data-theme="light"] .tablewrap{
+      background: rgba(0,0,0,.03);
+    }
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+    thead th{
+      position:sticky; top:0;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+      text-align:left;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--line);
+      white-space:nowrap;
+    }
+    [data-theme="light"] thead th{
+      background: rgba(248,251,255,.95);
+    }
+    tbody td{
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+      white-space:nowrap;
+    }
+    tbody tr:hover{
+      background: rgba(106,167,255,.06);
+    }
+    td input, td select{
+      width: 100%;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+      padding: 7px 8px;
+      border-radius: 10px;
+      outline:none;
+    }
+    [data-theme="light"] td input, [data-theme="light"] td select{
+      background: rgba(0,0,0,.03);
+    }
+    td input:focus, td select:focus{
+      box-shadow: 0 0 0 4px var(--focus);
+      border-color: rgba(106,167,255,.6);
+    }
+    .num{ text-align:right; font-family: var(--mono); }
+    .small{ font-size: 12px; color: var(--muted); }
+    .nowrap{ white-space:nowrap; }
+    .pill{
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .pill .dot{ width:7px; height:7px; margin:0; }
+    .right{
+      text-align:right;
+    }
+    .actions{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    .tfoot{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .totals{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 720px){
+      .totals{ grid-template-columns: repeat(2, 1fr); }
+    }
+    .kpi{
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    [data-theme="light"] .kpi{
+      background: rgba(0,0,0,.02);
+    }
+    .kpi .label{ color:var(--muted); font-size:12px; }
+    .kpi .value{ font-family:var(--mono); font-size: 16px; margin-top:4px; }
+
+    .sidegrid{
+      display:grid;
+      gap:14px;
+    }
+
+    .seg{
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+      justify-content:space-between;
+    }
+    .seg .leftseg{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    .scenarioBtns{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .scenarioBtns button{
+      box-shadow:none;
+      padding:7px 9px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.10);
+    }
+    .scenarioBtns button.active{
+      border-color: rgba(106,167,255,.75);
+      background: rgba(106,167,255,.18);
+    }
+    .range{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    input[type="range"]{
+      width: 240px;
+      accent-color: var(--accent);
+    }
+    .note{
+      color:var(--muted);
+      font-size:12px;
+      margin-top: 10px;
+    }
+    .footer-note{
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .linklike{
+      text-decoration: underline;
+      cursor:pointer;
+    }
+
+    /* Modal */
+    .modalbg{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+      z-index: 50;
+    }
+    .modal{
+      max-width: 900px;
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    [data-theme="light"] .modal{ background: #fff; }
+    .modal .cardhead{ background: rgba(0,0,0,.06); }
+    [data-theme="light"] .modal .cardhead{ background: rgba(0,0,0,.02); }
+    .modal .cardbody{ background: var(--panel2); }
+    [data-theme="light"] .modal .cardbody{ background: #f8fbff; }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>Portfolio Tracker</h1>
+        <div class="sub">Runs entirely in your browser • Mobile-friendly • Saves to localStorage</div>
+      </div>
+
+      <div class="btnrow">
+        <div class="chip">
+          <label for="baseCcy">Base</label>
+          <select id="baseCcy">
+            <option value="USD" selected>USD</option>
+            <option value="IDR">IDR</option>
+            <option value="EUR">EUR</option>
+            <option value="SGD">SGD</option>
+            <option value="JPY">JPY</option>
+            <option value="AUD">AUD</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+
+        <div class="chip">
+          <label for="otherCcy">Other</label>
+          <select id="otherCcy">
+            <option value="SGD" selected>SGD</option>
+            <option value="USD">USD</option>
+            <option value="IDR">IDR</option>
+            <option value="EUR">EUR</option>
+            <option value="JPY">JPY</option>
+            <option value="AUD">AUD</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+
+        <button id="refreshBtn" class="primary">Refresh prices</button>
+        <button id="addRowBtn">Add row</button>
+        <button id="scenariosBtn">Scenario rates</button>
+        <button id="exportBtn">Export</button>
+        <button id="importBtn">Import</button>
+        <button id="themeBtn">Toggle theme</button>
+        <button id="resetBtn" class="danger">Reset</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <!-- LEFT: TABLE -->
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <h2>Assets</h2>
+          <div class="hint">Edit fields freely. For crypto, set Source = “CoinGecko” and put the CoinGecko ID (e.g., <span class="nowrap">bitcoin</span>, <span class="nowrap">tether</span>).</div>
+          <div class="statusline" id="statusLine">
+            <span class="pill"><span class="dot" id="fxDot"></span><span id="fxStatus">FX: …</span></span>
+            <span class="pill"><span class="dot" id="cgDot"></span><span id="cgStatus">CoinGecko: …</span></span>
+            <span class="pill"><span class="dot" id="goldDot"></span><span id="goldStatus">Gold: …</span></span>
+            <span class="pill"><span class="dot good"></span><span>Autosave: ON</span></span>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="fillDefaultsBtn">Load your 10 defaults</button>
+          <button id="downloadCsvBtn">Download CSV</button>
+        </div>
+      </div>
+
+      <div class="cardbody">
+        <div class="tablewrap">
+          <table id="assetTable">
+            <thead>
+              <tr>
+                <th style="min-width:220px;">Name</th>
+                <th style="min-width:120px;">Category</th>
+                <th style="min-width:110px;">Units</th>
+                <th style="min-width:120px;">Unit</th>
+                <th style="min-width:130px;">Amount currency</th>
+                <th style="min-width:150px;">Source</th>
+                <th style="min-width:160px;">Source ID / Ticker</th>
+                <th style="min-width:140px;">Manual price (USD)</th>
+                <th style="min-width:160px;" class="right">Value (USD)</th>
+                <th style="min-width:160px;" class="right">Value (IDR)</th>
+                <th style="min-width:170px;" class="right">Value (Other)</th>
+                <th style="min-width:120px;" class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assetTbody"></tbody>
+          </table>
+        </div>
+
+        <div class="tfoot">
+          <div class="totals">
+            <div class="kpi">
+              <div class="label">Total (USD)</div>
+              <div class="value" id="totalUSD">$0.00</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Total (IDR)</div>
+              <div class="value" id="totalIDR">Rp0</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Total (Other)</div>
+              <div class="value" id="totalOther">0</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Last refresh</div>
+              <div class="value" id="lastRefresh" style="font-size:13px; font-family:var(--sans); color:var(--muted);">—</div>
+            </div>
+          </div>
+
+          <div class="note">
+            Tips:
+            • Cash uses <span class="nowrap">Units × 1</span> in the “Amount currency”.
+            • Gold uses grams/oz with live spot if available; or set a manual USD price per gram/oz.
+            • “Other” currency conversion is from your chosen Base → Other via USD FX.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: CHARTS -->
+    <aside class="sidegrid">
+      <section class="card">
+        <div class="cardhead">
+          <div>
+            <h2>Allocation</h2>
+            <div class="hint">Pie chart updates with live prices (or manual prices).</div>
+          </div>
+          <div class="chip">
+            <label for="allocYear">Year</label>
+            <select id="allocYear"></select>
+          </div>
+        </div>
+        <div class="cardbody">
+          <canvas id="pieChart" height="220"></canvas>
+          <div class="footer-note" id="allocNote"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardhead">
+          <div>
+            <h2>Projection</h2>
+            <div class="hint">Choose a scenario, then set horizon. (Asset-specific rates supported.)</div>
+          </div>
+          <div class="chip">
+            <label for="horizonYears">Horizon</label>
+            <select id="horizonYears"></select>
+          </div>
+        </div>
+        <div class="cardbody">
+          <div class="seg">
+            <div class="leftseg scenarioBtns" id="scenarioBtns"></div>
+            <div class="range">
+              <span class="small">View year:</span>
+              <input id="viewYearRange" type="range" min="0" max="10" step="1" value="0" />
+              <span class="pill"><span class="dot good"></span><span id="viewYearLabel">0</span></span>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <canvas id="projChart" height="230"></canvas>
+          </div>
+
+          <div class="note">
+            Scenario math is simple compounding per year (you can change rates in <span class="linklike" id="openScenarioLink">Scenario rates</span>).
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<!-- Export / Import -->
+<input id="fileInput" type="file" accept="application/json" style="display:none" />
+
+<!-- Scenario Modal -->
+<div class="modalbg" id="scenarioModalBg" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="cardhead">
+      <div>
+        <h2>Scenario rates (annual %)</h2>
+        <div class="hint">Default rates by category + optional per-asset overrides. Click “Save”.</div>
+      </div>
+      <div class="actions">
+        <button id="scenarioCloseBtn">Close</button>
+        <button id="scenarioSaveBtn" class="primary">Save</button>
+      </div>
+    </div>
+    <div class="cardbody">
+      <div class="small" style="margin-bottom:10px;">
+        Default category rates apply unless a row has an override (set in the table under “Actions → Rates”).
+      </div>
+
+      <div class="tablewrap">
+        <table style="min-width: 820px;">
+          <thead>
+            <tr>
+              <th style="min-width:160px;">Scenario</th>
+              <th>Cash</th>
+              <th>Crypto</th>
+              <th>Gold</th>
+              <th>Stock</th>
+              <th>Other</th>
+            </tr>
+          </thead>
+          <tbody id="scenarioDefaultsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        “Fun” idea baked in: in the default set, Bitcoin/Crypto can be mega-bull while Gold is flat or slightly down (and vice versa).
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Per-row Rates Modal -->
+<div class="modalbg" id="rowRatesModalBg" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="cardhead">
+      <div>
+        <h2 id="rowRatesTitle">Asset-specific rates</h2>
+        <div class="hint">Overrides scenario defaults for this asset only. Leave blank to use defaults.</div>
+      </div>
+      <div class="actions">
+        <button id="rowRatesCloseBtn">Close</button>
+        <button id="rowRatesSaveBtn" class="primary">Save</button>
+      </div>
+    </div>
+    <div class="cardbody">
+      <div class="tablewrap">
+        <table style="min-width: 820px;">
+          <thead>
+            <tr>
+              <th style="min-width:160px;">Scenario</th>
+              <th style="min-width:220px;">Annual rate % (override)</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody id="rowRatesBody"></tbody>
+        </table>
+      </div>
+      <div class="note">
+        Example: set Bitcoin mega-bull to <span class="nowrap">+50%</span>, while gold in that scenario stays <span class="nowrap">0%</span> or <span class="nowrap">-5%</span>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ----------------------------
+  // Config / State
+  // ----------------------------
+  const STORAGE_KEY = "portfolio_tracker_v1";
+  const THEME_KEY = "portfolio_tracker_theme";
+
+  const Categories = ["cash","crypto","gold","stock","other"];
+  const Units = {
+    cash: ["(currency)"],
+    crypto: ["coin"],
+    gold: ["gram","troy_oz"],
+    stock: ["share"],
+    other: ["unit"]
+  };
+
+  const PriceSource = ["manual","coingecko","gold_spot","none"];
+
+  const ScenarioList = [
+    { id:"steady", label:"Steady" },
+    { id:"bull", label:"Bull" },
+    { id:"mega", label:"Mega Bull" },
+    { id:"bear", label:"Bear" },
+    { id:"superbear", label:"Super Bear" },
+    { id:"chaos", label:"Chaos" }, // fun: mixed / volatile-ish (still deterministic here)
+  ];
+
+  // Default annual rates (%). You can edit in UI.
+  let scenarioDefaults = {
+    steady:    { cash:  2, crypto: 10, gold:  4, stock:  7, other:  3 },
+    bull:      { cash:  2, crypto: 20, gold:  2, stock: 12, other:  6 },
+    mega:      { cash:  2, crypto: 50, gold: -2, stock: 18, other:  8 },
+    bear:      { cash:  2, crypto:-20, gold:  8, stock:-12, other: -5 },
+    superbear: { cash:  2, crypto:-50, gold: 12, stock:-25, other:-12 },
+    chaos:     { cash:  2, crypto: 15, gold:  6, stock:  5, other:  2 },
+  };
+
+  const defaultRows = () => ([
+    mkRow("Cash IDR",           "cash", 0, "(currency)", "IDR", "none", "", ""),
+    mkRow("Cash USD Bank A",    "cash", 0, "(currency)", "USD", "none", "", ""),
+    mkRow("Cash USD Bank B",    "cash", 0, "(currency)", "USD", "none", "", ""),
+    mkRow("USDT Exchange A",    "crypto", 0, "coin", "USD", "coingecko", "tether", ""),
+    mkRow("Bitcoin Wallet A",   "crypto", 0, "coin", "USD", "coingecko", "bitcoin", ""),
+    mkRow("Bitcoin Wallet B",   "crypto", 0, "coin", "USD", "coingecko", "bitcoin", ""),
+    mkRow("Physical Gold",      "gold", 0, "gram", "USD", "gold_spot", "gold", ""), // sourceId kept as 'gold'
+    mkRow("Fill in",            "other", 0, "unit", "USD", "manual", "", ""),
+    mkRow("Fill in",            "other", 0, "unit", "USD", "manual", "", ""),
+    mkRow("Fill in",            "other", 0, "unit", "USD", "manual", "", ""),
+  ]);
+
+  // State
+  let state = {
+    baseCcy: "USD",
+    otherCcy: "SGD",
+    rows: defaultRows(),
+    scenarioId: "steady",
+    horizonYears: 10,
+    viewYear: 0, // for pie projection view
+    // caches
+    fx: { base:"USD", rates: {}, at: null },
+    pricesUSD: { /* key -> price in USD */ },
+    lastRefresh: null,
+  };
+
+  // Per-row scenario overrides: row.ratesOverride[scenarioId] = number (annual %)
+  function mkRow(name, category, units, unit, amountCcy, source, sourceId, manualUsd){
+    return {
+      id: cryptoRandomId(),
+      name,
+      category,
+      units: Number(units)||0,
+      unit,
+      amountCcy,
+      source,
+      sourceId,
+      manualUsd: manualUsd === "" ? "" : Number(manualUsd),
+      ratesOverride: {} // scenarioId -> number
+    };
+  }
+
+  function cryptoRandomId(){
+    // short id, stable enough for local use
+    return Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+  }
+
+  // ----------------------------
+  // DOM
+  // ----------------------------
+  const el = (id) => document.getElementById(id);
+
+  const assetTbody = el("assetTbody");
+  const baseCcySel = el("baseCcy");
+  const otherCcySel = el("otherCcy");
+  const refreshBtn = el("refreshBtn");
+  const addRowBtn = el("addRowBtn");
+  const fillDefaultsBtn = el("fillDefaultsBtn");
+  const resetBtn = el("resetBtn");
+  const exportBtn = el("exportBtn");
+  const importBtn = el("importBtn");
+  const fileInput = el("fileInput");
+  const downloadCsvBtn = el("downloadCsvBtn");
+  const themeBtn = el("themeBtn");
+
+  const totalUSD = el("totalUSD");
+  const totalIDR = el("totalIDR");
+  const totalOther = el("totalOther");
+  const lastRefresh = el("lastRefresh");
+
+  const fxDot = el("fxDot"), fxStatus = el("fxStatus");
+  const cgDot = el("cgDot"), cgStatus = el("cgStatus");
+  const goldDot = el("goldDot"), goldStatus = el("goldStatus");
+
+  const allocYearSel = el("allocYear");
+  const allocNote = el("allocNote");
+
+  const horizonYearsSel = el("horizonYears");
+  const scenarioBtns = el("scenarioBtns");
+  const viewYearRange = el("viewYearRange");
+  const viewYearLabel = el("viewYearLabel");
+  const openScenarioLink = el("openScenarioLink");
+
+  // Scenario modal
+  const scenarioModalBg = el("scenarioModalBg");
+  const scenarioDefaultsBody = el("scenarioDefaultsBody");
+  const scenarioCloseBtn = el("scenarioCloseBtn");
+  const scenarioSaveBtn = el("scenarioSaveBtn");
+  const scenariosBtn = el("scenariosBtn");
+
+  // Row rates modal
+  const rowRatesModalBg = el("rowRatesModalBg");
+  const rowRatesTitle = el("rowRatesTitle");
+  const rowRatesBody = el("rowRatesBody");
+  const rowRatesCloseBtn = el("rowRatesCloseBtn");
+  const rowRatesSaveBtn = el("rowRatesSaveBtn");
+  let editingRowId = null;
+
+  // Charts
+  const pieCtx = el("pieChart");
+  const projCtx = el("projChart");
+  let pieChart = null;
+  let projChart = null;
+
+  // ----------------------------
+  // Persistence
+  // ----------------------------
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        state = deepMerge(state, parsed);
+        // ensure required keys
+        if(!Array.isArray(state.rows) || state.rows.length===0) state.rows = defaultRows();
+        // normalize rows
+        state.rows = state.rows.map(r => ({
+          id: r.id || cryptoRandomId(),
+          name: r.name ?? "Asset",
+          category: Categories.includes(r.category) ? r.category : "other",
+          units: Number(r.units)||0,
+          unit: r.unit || "unit",
+          amountCcy: r.amountCcy || "USD",
+          source: PriceSource.includes(r.source) ? r.source : "manual",
+          sourceId: r.sourceId || "",
+          manualUsd: (r.manualUsd === "" || r.manualUsd === null || typeof r.manualUsd === "undefined") ? "" : Number(r.manualUsd),
+          ratesOverride: r.ratesOverride || {}
+        }));
+        if(parsed.scenarioDefaults) scenarioDefaults = parsed.scenarioDefaults;
+      }
+    }catch(e){
+      console.warn("Load failed", e);
+    }
+  }
+  function save(){
+    const payload = {
+      baseCcy: state.baseCcy,
+      otherCcy: state.otherCcy,
+      rows: state.rows,
+      scenarioId: state.scenarioId,
+      horizonYears: state.horizonYears,
+      viewYear: state.viewYear,
+      scenarioDefaults
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+  function deepMerge(target, source){
+    if(typeof source !== "object" || source === null) return target;
+    const out = Array.isArray(target) ? target.slice() : { ...target };
+    for(const k of Object.keys(source)){
+      const sv = source[k];
+      const tv = out[k];
+      if(Array.isArray(sv)) out[k] = sv;
+      else if(typeof sv === "object" && sv !== null && typeof tv === "object" && tv !== null && !Array.isArray(tv)){
+        out[k] = deepMerge(tv, sv);
+      } else {
+        out[k] = sv;
+      }
+    }
+    return out;
+  }
+
+  // ----------------------------
+  // Formatting helpers
+  // ----------------------------
+  function fmtMoney(n, ccy){
+    if(!isFinite(n)) n = 0;
+    try{
+      return new Intl.NumberFormat(undefined, { style:"currency", currency: ccy, maximumFractionDigits: (ccy==="IDR"?0:2) }).format(n);
+    }catch{
+      // fallback
+      return `${ccy} ${n.toFixed(ccy==="IDR"?0:2)}`;
+    }
+  }
+  function fmtNum(n, digits=6){
+    if(!isFinite(n)) n = 0;
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(n);
+  }
+  function nowStr(){
+    return new Date().toLocaleString();
+  }
+
+  // ----------------------------
+  // FX + Prices
+  // ----------------------------
+  async function fetchFX(){
+    // Free endpoint (no key): open.er-api.com
+    // We fetch USD rates; conversions then go through USD.
+    const url = "https://open.er-api.com/v6/latest/USD";
+    try{
+      const r = await fetch(url, { cache:"no-store" });
+      const j = await r.json();
+      if(j && j.result === "success" && j.rates){
+        state.fx = { base:"USD", rates:j.rates, at: j.time_last_update_utc || nowStr() };
+        setDot(fxDot, true);
+        fxStatus.textContent = `FX: OK (${state.fx.at})`;
+        return true;
+      }
+      throw new Error("FX parse fail");
+    }catch(e){
+      setDot(fxDot, false);
+      fxStatus.textContent = "FX: failed (using last saved if any)";
+      console.warn("FX fetch failed", e);
+      return false;
+    }
+  }
+
+  function setDot(dotEl, ok){
+    dotEl.classList.remove("good","bad");
+    dotEl.classList.add(ok ? "good" : "bad");
+  }
+
+  function ccyToUsd(amount, ccy){
+    // uses USD-based rates: rate means 1 USD = rate * CCY
+    // so USD = amount / rate
+    if(!amount || !isFinite(amount)) return 0;
+    if(ccy === "USD") return amount;
+    const rate = state.fx?.rates?.[ccy];
+    if(!rate) return 0;
+    return amount / rate;
+  }
+  function usdToCcy(usd, ccy){
+    if(!usd || !isFinite(usd)) return 0;
+    if(ccy === "USD") return usd;
+    const rate = state.fx?.rates?.[ccy];
+    if(!rate) return 0;
+    return usd * rate;
+  }
+
+  async function fetchCoinGeckoPrices(ids){
+    // CoinGecko simple price endpoint (no key): may be rate-limited
+    // https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,tether&vs_currencies=usd
+    if(!ids.length) return { ok:true, prices:{} };
+    const unique = [...new Set(ids.filter(Boolean))];
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(unique.join(","))}&vs_currencies=usd`;
+    try{
+      const r = await fetch(url, { cache:"no-store" });
+      const j = await r.json();
+      const prices = {};
+      for(const id of unique){
+        if(j[id] && typeof j[id].usd === "number") prices[id] = j[id].usd;
+      }
+      setDot(cgDot, true);
+      cgStatus.textContent = `CoinGecko: OK (${unique.length} ids)`;
+      return { ok:true, prices };
+    }catch(e){
+      setDot(cgDot, false);
+      cgStatus.textContent = "CoinGecko: failed (using manual/last)";
+      console.warn("CoinGecko fetch failed", e);
+      return { ok:false, prices:{} };
+    }
+  }
+
+  async function fetchGoldSpotUSD(){
+    // Best-effort: try a couple of public endpoints.
+    // We'll treat result as USD per troy ounce.
+    const candidates = [
+      "https://api.metals.live/v1/spot/gold",   // often returns array like [["gold", 2060.12, ...]]
+      "https://www.goldapi.io/api/XAU/USD",     // requires key -> will fail, but kept as fallback for user to adapt
+    ];
+    for(const url of candidates){
+      try{
+        const r = await fetch(url, { cache:"no-store" });
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        const txt = await r.text();
+        let spot = null;
+
+        // metals.live format
+        if(url.includes("metals.live")){
+          const j = JSON.parse(txt);
+          // could be like: [["gold", 2060.12, 1700000000], ...]
+          const item = Array.isArray(j) ? j.find(x => Array.isArray(x) && (x[0]==="gold" || x[0]==="XAU")) : null;
+          if(item && typeof item[1] === "number") spot = item[1];
+        } else {
+          // goldapi.io style
+          const j = JSON.parse(txt);
+          if(typeof j.price === "number") spot = j.price;
+        }
+
+        if(spot && isFinite(spot)){
+          setDot(goldDot, true);
+          goldStatus.textContent = `Gold: OK (USD/oz ${spot.toFixed(2)})`;
+          return { ok:true, usdPerOz: spot };
+        }
+      }catch(e){
+        // try next
+      }
+    }
+
+    setDot(goldDot, false);
+    goldStatus.textContent = "Gold: failed (use manual price)";
+    return { ok:false, usdPerOz: null };
+  }
+
+  // ----------------------------
+  // Value computation
+  // ----------------------------
+  function getRowLiveUnitPriceUSD(row){
+    // returns USD price per "unit" of the row's unit (or per coin/share/etc)
+    // For cash: 1 unit == 1 in amount currency converted to USD (handled elsewhere)
+    if(row.category === "cash"){
+      return null; // handled by cash path
+    }
+
+    // Manual override always wins if set
+    if(row.manualUsd !== "" && isFinite(Number(row.manualUsd))){
+      return Number(row.manualUsd);
+    }
+
+    // Crypto via CoinGecko
+    if(row.source === "coingecko" && row.sourceId){
+      const p = state.pricesUSD[row.sourceId];
+      if(typeof p === "number") return p;
+    }
+
+    // Gold spot: we treat spot as USD per troy ounce. Convert to per gram if needed.
+    if(row.category === "gold" && state.pricesUSD.__gold_usd_oz){
+      const usdPerOz = state.pricesUSD.__gold_usd_oz;
+      if(row.unit === "troy_oz") return usdPerOz;
+      if(row.unit === "gram") return usdPerOz / 31.1034768;
+      // unknown unit -> assume gram
+      return usdPerOz / 31.1034768;
+    }
+
+    return null;
+  }
+
+  function rowValueUSD(row){
+    const units = Number(row.units)||0;
+
+    if(row.category === "cash"){
+      // units interpreted as "amount" in amountCcy
+      return ccyToUsd(units, row.amountCcy);
+    }
+
+    // Non-cash:
+    const price = getRowLiveUnitPriceUSD(row);
+    if(price === null) return 0;
+    return units * price;
+  }
+
+  function calcTotalsForYear(year){
+    // year=0 means today; otherwise apply scenario compounding per row
+    const scenarioId = state.scenarioId;
+    const totals = {
+      byRowUSD: {},
+      totalUSD: 0
+    };
+
+    for(const row of state.rows){
+      const todayUSD = rowValueUSD(row);
+
+      const annual = getAnnualRate(row, scenarioId); // percent
+      const factor = Math.pow(1 + (annual/100), year);
+      const projected = todayUSD * factor;
+
+      totals.byRowUSD[row.id] = projected;
+      totals.totalUSD += projected;
+    }
+    return totals;
+  }
+
+  function getAnnualRate(row, scenarioId){
+    const ov = row.ratesOverride?.[scenarioId];
+    if(typeof ov === "number" && isFinite(ov)) return ov;
+
+    const cat = row.category;
+    const d = scenarioDefaults?.[scenarioId]?.[cat];
+    if(typeof d === "number" && isFinite(d)) return d;
+
+    return 0;
+  }
+
+  // ----------------------------
+  // UI Rendering: table
+  // ----------------------------
+  function renderTable(){
+    assetTbody.innerHTML = "";
+
+    for(const row of state.rows){
+      const tr = document.createElement("tr");
+
+      tr.appendChild(tdInput(row, "name", { placeholder:"Asset name" }));
+
+      tr.appendChild(tdSelect(row, "category", Categories, {
+        onChange: (val) => {
+          // reset unit options on category change
+          row.unit = (Units[val] && Units[val][0]) ? Units[val][0] : "unit";
+          if(val === "cash"){
+            row.source = "none";
+            row.sourceId = "";
+            row.manualUsd = "";
+          } else {
+            if(row.source === "none") row.source = "manual";
+          }
+          renderAll();
+          save();
+        }
+      }));
+
+      tr.appendChild(tdNumber(row, "units", { step:"any", min:"0" }));
+
+      // unit
+      const unitOptions = Units[row.category] || ["unit"];
+      tr.appendChild(tdSelect(row, "unit", unitOptions));
+
+      // amount currency
+      tr.appendChild(tdCcy(row, "amountCcy"));
+
+      // source
+      const sourceOptions = (row.category === "cash")
+        ? ["none"]
+        : (row.category === "gold")
+          ? ["gold_spot","manual","none","coingecko"]
+          : ["coingecko","manual","none"];
+
+      tr.appendChild(tdSelect(row, "source", sourceOptions, {
+        onChange: () => { renderAll(); save(); }
+      }));
+
+      tr.appendChild(tdInput(row, "sourceId", { placeholder: row.source === "coingecko" ? "coingecko id (e.g. bitcoin)" : "ticker/id", mono:true }));
+
+      tr.appendChild(tdNumber(row, "manualUsd", { placeholder: "(optional)", step:"any", min:"0" }));
+
+      // computed columns
+      const vUSD = rowValueUSD(row);
+      const vIDR = usdToCcy(vUSD, "IDR");
+      const vOther = usdToCcy(vUSD, state.otherCcy);
+
+      tr.appendChild(tdText(fmtMoney(vUSD, "USD"), true));
+      tr.appendChild(tdText(fmtMoney(vIDR, "IDR"), true));
+      tr.appendChild(tdText(fmtMoney(vOther, state.otherCcy), true));
+
+      // actions
+      const tdA = document.createElement("td");
+      tdA.className = "right";
+      const bDel = document.createElement("button");
+      bDel.textContent = "Delete";
+      bDel.className = "danger";
+      bDel.style.boxShadow = "none";
+      bDel.style.padding = "6px 9px";
+      bDel.onclick = () => {
+        state.rows = state.rows.filter(r => r.id !== row.id);
+        renderAll();
+        save();
+      };
+
+      const bRates = document.createElement("button");
+      bRates.textContent = "Rates";
+      bRates.style.boxShadow = "none";
+      bRates.style.padding = "6px 9px";
+      bRates.onclick = () => openRowRates(row.id);
+
+      tdA.appendChild(bRates);
+      tdA.appendChild(document.createTextNode(" "));
+      tdA.appendChild(bDel);
+      tr.appendChild(tdA);
+
+      assetTbody.appendChild(tr);
+    }
+  }
+
+  function tdText(text, right=false){
+    const td = document.createElement("td");
+    td.className = right ? "right num" : "num";
+    td.textContent = text;
+    return td;
+  }
+
+  function tdInput(row, key, opts={}){
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.value = row[key] ?? "";
+    inp.placeholder = opts.placeholder || "";
+    if(opts.mono) inp.style.fontFamily = "var(--mono)";
+    inp.oninput = () => {
+      row[key] = inp.value;
+      renderAll(false);
+      save();
+    };
+    td.appendChild(inp);
+    return td;
+  }
+
+  function tdNumber(row, key, opts={}){
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = "number";
+    inp.value = row[key] === "" ? "" : (isFinite(row[key]) ? row[key] : 0);
+    inp.placeholder = opts.placeholder || "";
+    inp.step = opts.step || "any";
+    if(opts.min) inp.min = opts.min;
+    inp.className = "num";
+    inp.oninput = () => {
+      const v = inp.value;
+      row[key] = (v === "" ? "" : Number(v));
+      renderAll(false);
+      save();
+    };
+    td.appendChild(inp);
+    return td;
+  }
+
+  function tdSelect(row, key, options, opts={}){
+    const td = document.createElement("td");
+    const sel = document.createElement("select");
+    for(const o of options){
+      const op = document.createElement("option");
+      op.value = o;
+      op.textContent = o;
+      sel.appendChild(op);
+    }
+    sel.value = row[key] ?? options[0];
+    sel.onchange = () => {
+      row[key] = sel.value;
+      if(opts.onChange) opts.onChange(sel.value);
+      renderAll(false);
+      save();
+    };
+    td.appendChild(sel);
+    return td;
+  }
+
+  function tdCcy(row, key){
+    // Currency list based on FX response (if available) else a minimal list.
+    const td = document.createElement("td");
+    const sel = document.createElement("select");
+    const fallback = ["USD","IDR","EUR","SGD","JPY","AUD","GBP"];
+    const opts = state.fx?.rates ? Object.keys(state.fx.rates) : fallback;
+
+    // ensure some stable ordering
+    const preferred = ["USD","IDR","EUR","SGD","JPY","AUD","GBP"];
+    const set = new Set(opts);
+    const ordered = [...preferred.filter(x => set.has(x)), ...opts.filter(x => !preferred.includes(x)).sort()].slice(0, 120);
+
+    for(const c of ordered){
+      const op = document.createElement("option");
+      op.value = c; op.textContent = c;
+      sel.appendChild(op);
+    }
+    sel.value = row[key] || "USD";
+    sel.onchange = () => {
+      row[key] = sel.value;
+      renderAll(false);
+      save();
+    };
+    td.appendChild(sel);
+    return td;
+  }
+
+  // ----------------------------
+  // Charts
+  // ----------------------------
+  function renderPie(year){
+    const totals = calcTotalsForYear(year);
+    const entries = state.rows.map(r => ({
+      name: r.name || "Asset",
+      usd: totals.byRowUSD[r.id] || 0
+    })).filter(x => x.usd > 0.0000001);
+
+    const labels = entries.map(x => x.name);
+    const data = entries.map(x => x.usd);
+
+    const total = data.reduce((a,b)=>a+b,0);
+    allocNote.textContent = (year === 0)
+      ? `Allocation based on current values. Total: ${fmtMoney(total, "USD")}`
+      : `Allocation projected at year ${year} (${ScenarioList.find(s=>s.id===state.scenarioId)?.label || state.scenarioId}). Total: ${fmtMoney(total, "USD")}`;
+
+    if(!pieChart){
+      pieChart = new Chart(pieCtx, {
+        type: "pie",
+        data: { labels, datasets: [{ data }] },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const v = ctx.parsed || 0;
+                  const pct = total ? (v/total*100) : 0;
+                  return ` ${ctx.label}: ${fmtMoney(v, "USD")} (${pct.toFixed(2)}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    } else {
+      pieChart.data.labels = labels;
+      pieChart.data.datasets[0].data = data;
+      pieChart.update();
+    }
+  }
+
+  function renderProjection(){
+    const horizon = state.horizonYears;
+    const years = Array.from({length: horizon+1}, (_,i)=>i);
+
+    // total line
+    const totalsByYear = years.map(y => calcTotalsForYear(y).totalUSD);
+
+    // optional: also show BTC vs Gold vs Cash totals
+    const buckets = {
+      cash: years.map(()=>0),
+      crypto: years.map(()=>0),
+      gold: years.map(()=>0),
+      stock: years.map(()=>0),
+      other: years.map(()=>0),
+    };
+
+    for(let y=0; y<=horizon; y++){
+      const byRow = calcTotalsForYear(y).byRowUSD;
+      for(const row of state.rows){
+        const v = byRow[row.id] || 0;
+        if(buckets[row.category]) buckets[row.category][y] += v;
+        else buckets.other[y] += v;
+      }
+    }
+
+    const datasets = [
+      { label:"Total", data: totalsByYear, borderWidth: 2, tension: .22 },
+      { label:"Crypto", data: buckets.crypto, borderWidth: 1.8, tension: .22 },
+      { label:"Gold", data: buckets.gold, borderWidth: 1.8, tension: .22 },
+      { label:"Cash", data: buckets.cash, borderWidth: 1.8, tension: .22 },
+    ];
+
+    if(!projChart){
+      projChart = new Chart(projCtx, {
+        type:"line",
+        data:{ labels: years.map(y => `Year ${y}`), datasets },
+        options:{
+          responsive:true,
+          scales:{
+            y: {
+              ticks: {
+                callback: (v) => fmtMoney(v, "USD")
+              }
+            }
+          },
+          plugins:{
+            legend:{ position:"bottom" },
+            tooltip:{
+              callbacks:{
+                label: (ctx) => `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y, "USD")}`
+              }
+            }
+          }
+        }
+      });
+    } else {
+      projChart.data.labels = years.map(y => `Year ${y}`);
+      projChart.data.datasets = datasets;
+      projChart.update();
+    }
+  }
+
+  // ----------------------------
+  // Scenarios UI
+  // ----------------------------
+  function renderScenarioButtons(){
+    scenarioBtns.innerHTML = "";
+    for(const s of ScenarioList){
+      const b = document.createElement("button");
+      b.textContent = s.label;
+      b.className = (state.scenarioId === s.id) ? "active" : "";
+      b.onclick = () => {
+        state.scenarioId = s.id;
+        renderAll();
+        save();
+      };
+      scenarioBtns.appendChild(b);
+    }
+  }
+
+  function renderYearSelects(){
+    // Allocation Year select: 0..horizon
+    allocYearSel.innerHTML = "";
+    for(let y=0; y<=state.horizonYears; y++){
+      const op = document.createElement("option");
+      op.value = String(y);
+      op.textContent = `Year ${y}`;
+      allocYearSel.appendChild(op);
+    }
+    allocYearSel.value = String(Math.min(state.viewYear, state.horizonYears));
+
+    // Horizon select
+    horizonYearsSel.innerHTML = "";
+    for(const y of [1,2,3,5,7,10,15,20,30]){
+      const op = document.createElement("option");
+      op.value = String(y);
+      op.textContent = `${y} years`;
+      horizonYearsSel.appendChild(op);
+    }
+    horizonYearsSel.value = String(state.horizonYears);
+
+    // Range
+    viewYearRange.max = String(state.horizonYears);
+    viewYearRange.value = String(Math.min(state.viewYear, state.horizonYears));
+    viewYearLabel.textContent = viewYearRange.value;
+  }
+
+  function openScenarioModal(){
+    scenarioDefaultsBody.innerHTML = "";
+    for(const s of ScenarioList){
+      const tr = document.createElement("tr");
+
+      const tdName = document.createElement("td");
+      tdName.textContent = s.label;
+      tr.appendChild(tdName);
+
+      for(const cat of Categories){
+        const td = document.createElement("td");
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.step = "any";
+        inp.value = scenarioDefaults?.[s.id]?.[cat] ?? 0;
+        inp.dataset.scenario = s.id;
+        inp.dataset.cat = cat;
+        inp.className = "num";
+        td.appendChild(inp);
+        tr.appendChild(td);
+      }
+
+      scenarioDefaultsBody.appendChild(tr);
+    }
+    scenarioModalBg.style.display = "flex";
+  }
+
+  function closeScenarioModal(){
+    scenarioModalBg.style.display = "none";
+  }
+
+  function saveScenarioModal(){
+    const inputs = scenarioDefaultsBody.querySelectorAll("input[type=number]");
+    for(const inp of inputs){
+      const s = inp.dataset.scenario;
+      const cat = inp.dataset.cat;
+      const v = Number(inp.value);
+      if(!scenarioDefaults[s]) scenarioDefaults[s] = {};
+      scenarioDefaults[s][cat] = isFinite(v) ? v : 0;
+    }
+    closeScenarioModal();
+    renderAll();
+    save();
+  }
+
+  function openRowRates(rowId){
+    const row = state.rows.find(r => r.id === rowId);
+    if(!row) return;
+
+    editingRowId = rowId;
+    rowRatesTitle.textContent = `Asset-specific rates: ${row.name || "Asset"}`;
+    rowRatesBody.innerHTML = "";
+
+    for(const s of ScenarioList){
+      const tr = document.createElement("tr");
+
+      const tdS = document.createElement("td");
+      tdS.textContent = s.label;
+      tr.appendChild(tdS);
+
+      const tdInp = document.createElement("td");
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "any";
+      inp.placeholder = "(use default)";
+      const existing = row.ratesOverride?.[s.id];
+      inp.value = (typeof existing === "number" && isFinite(existing)) ? existing : "";
+      inp.dataset.scenario = s.id;
+      inp.className = "num";
+      tdInp.appendChild(inp);
+      tr.appendChild(tdInp);
+
+      const tdEx = document.createElement("td");
+      const d = scenarioDefaults?.[s.id]?.[row.category] ?? 0;
+      tdEx.innerHTML = `<span class="small">Default for <b>${row.category}</b>: ${d}%</span>`;
+      tr.appendChild(tdEx);
+
+      rowRatesBody.appendChild(tr);
+    }
+
+    rowRatesModalBg.style.display = "flex";
+  }
+
+  function closeRowRates(){
+    rowRatesModalBg.style.display = "none";
+    editingRowId = null;
+  }
+
+  function saveRowRates(){
+    if(!editingRowId) return;
+    const row = state.rows.find(r => r.id === editingRowId);
+    if(!row) return;
+
+    const inputs = rowRatesBody.querySelectorAll("input[type=number]");
+    for(const inp of inputs){
+      const sid = inp.dataset.scenario;
+      const vRaw = inp.value;
+      if(vRaw === ""){
+        if(row.ratesOverride) delete row.ratesOverride[sid];
+        continue;
+      }
+      const v = Number(vRaw);
+      if(!row.ratesOverride) row.ratesOverride = {};
+      row.ratesOverride[sid] = isFinite(v) ? v : 0;
+    }
+
+    closeRowRates();
+    renderAll();
+    save();
+  }
+
+  // ----------------------------
+  // Master render
+  // ----------------------------
+  function renderTotals(){
+    const t = calcTotalsForYear(0).totalUSD;
+    totalUSD.textContent = fmtMoney(t, "USD");
+    totalIDR.textContent = fmtMoney(usdToCcy(t, "IDR"), "IDR");
+    totalOther.textContent = fmtMoney(usdToCcy(t, state.otherCcy), state.otherCcy);
+    lastRefresh.textContent = state.lastRefresh || "—";
+  }
+
+  function renderAll(alsoRebuildTable=true){
+    if(alsoRebuildTable) renderTable();
+
+    renderTotals();
+    renderScenarioButtons();
+    renderYearSelects();
+
+    const allocYear = Number(allocYearSel.value || 0);
+    renderPie(allocYear);
+    renderProjection();
+
+    // Keep view year in sync to pie
+    const y = Number(viewYearRange.value || 0);
+    state.viewYear = y;
+    viewYearLabel.textContent = String(y);
+  }
+
+  // ----------------------------
+  // Actions
+  // ----------------------------
+  function addRow(){
+    state.rows.push(mkRow("New Asset", "other", 0, "unit", "USD", "manual", "", ""));
+    renderAll();
+    save();
+  }
+
+  function resetAll(){
+    if(!confirm("Reset everything? This clears local data.")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = {
+      baseCcy: "USD",
+      otherCcy: "SGD",
+      rows: defaultRows(),
+      scenarioId: "steady",
+      horizonYears: 10,
+      viewYear: 0,
+      fx: { base:"USD", rates: {}, at: null },
+      pricesUSD: {},
+      lastRefresh: null,
+    };
+    renderAll();
+  }
+
+  function loadDefaults(){
+    state.rows = defaultRows();
+    renderAll();
+    save();
+  }
+
+  function exportJSON(){
+    const payload = {
+      exportedAt: nowStr(),
+      version: 1,
+      state: {
+        baseCcy: state.baseCcy,
+        otherCcy: state.otherCcy,
+        rows: state.rows,
+        scenarioId: state.scenarioId,
+        horizonYears: state.horizonYears,
+        viewYear: state.viewYear,
+      },
+      scenarioDefaults
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "portfolio-tracker-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJSONFile(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const j = JSON.parse(reader.result);
+        if(j.state) state = deepMerge(state, j.state);
+        if(j.scenarioDefaults) scenarioDefaults = j.scenarioDefaults;
+        save();
+        renderAll();
+      }catch(e){
+        alert("Invalid JSON file.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function downloadCSV(){
+    const header = [
+      "name","category","units","unit","amountCcy","source","sourceId","manualUsd","valueUsd"
+    ];
+    const rows = state.rows.map(r => {
+      const v = rowValueUSD(r);
+      return [
+        r.name, r.category, r.units, r.unit, r.amountCcy, r.source, r.sourceId, r.manualUsd, v
+      ].map(x => `"${String(x ?? "").replaceAll('"','""')}"`).join(",");
+    });
+    const csv = header.join(",") + "\n" + rows.join("\n");
+    const blob = new Blob([csv], { type:"text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "portfolio-tracker.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ----------------------------
+  // Price refresh pipeline
+  // ----------------------------
+  async function refreshAllPrices(){
+    // FX
+    await fetchFX();
+
+    // CoinGecko ids from rows
+    const ids = state.rows
+      .filter(r => r.source === "coingecko" && r.sourceId)
+      .map(r => r.sourceId.trim().toLowerCase())
+      .filter(Boolean);
+
+    const cg = await fetchCoinGeckoPrices(ids);
+    for(const [k,v] of Object.entries(cg.prices)){
+      state.pricesUSD[k] = v;
+    }
+
+    // Gold spot
+    const hasGoldRow = state.rows.some(r => r.category === "gold" && r.source === "gold_spot");
+    if(hasGoldRow){
+      const gold = await fetchGoldSpotUSD();
+      if(gold.ok && gold.usdPerOz){
+        state.pricesUSD.__gold_usd_oz = gold.usdPerOz;
+      }
+    }
+
+    state.lastRefresh = nowStr();
+    save();
+    renderAll();
+  }
+
+  // ----------------------------
+  // Theme
+  // ----------------------------
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }
+  function initTheme(){
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved) applyTheme(saved);
+    else applyTheme("dark");
+  }
+
+  // ----------------------------
+  // Wire events
+  // ----------------------------
+  baseCcySel.onchange = () => { state.baseCcy = baseCcySel.value; save(); renderAll(); };
+  otherCcySel.onchange = () => { state.otherCcy = otherCcySel.value; save(); renderAll(); };
+
+  refreshBtn.onclick = refreshAllPrices;
+  addRowBtn.onclick = addRow;
+  fillDefaultsBtn.onclick = loadDefaults;
+  resetBtn.onclick = resetAll;
+
+  exportBtn.onclick = exportJSON;
+  importBtn.onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const f = fileInput.files && fileInput.files[0];
+    if(f) importJSONFile(f);
+    fileInput.value = "";
+  };
+
+  downloadCsvBtn.onclick = downloadCSV;
+
+  horizonYearsSel.onchange = () => {
+    state.horizonYears = Number(horizonYearsSel.value) || 10;
+    // clamp view year
+    state.viewYear = Math.min(state.viewYear, state.horizonYears);
+    save();
+    renderAll();
+  };
+
+  allocYearSel.onchange = () => {
+    const y = Number(allocYearSel.value) || 0;
+    renderPie(y);
+  };
+
+  viewYearRange.oninput = () => {
+    const y = Number(viewYearRange.value) || 0;
+    state.viewYear = y;
+    allocYearSel.value = String(y);
+    viewYearLabel.textContent = String(y);
+    renderPie(y);
+    save();
+  };
+
+  scenariosBtn.onclick = openScenarioModal;
+  openScenarioLink.onclick = openScenarioModal;
+  scenarioCloseBtn.onclick = closeScenarioModal;
+  scenarioSaveBtn.onclick = saveScenarioModal;
+  scenarioModalBg.onclick = (e) => { if(e.target === scenarioModalBg) closeScenarioModal(); };
+
+  rowRatesCloseBtn.onclick = closeRowRates;
+  rowRatesSaveBtn.onclick = saveRowRates;
+  rowRatesModalBg.onclick = (e) => { if(e.target === rowRatesModalBg) closeRowRates(); };
+
+  themeBtn.onclick = () => {
+    const cur = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(cur === "dark" ? "light" : "dark");
+  };
+
+  // ----------------------------
+  // Init
+  // ----------------------------
+  initTheme();
+  load();
+
+  baseCcySel.value = state.baseCcy || "USD";
+  otherCcySel.value = state.otherCcy || "SGD";
+
+  // Fill horizon options now
+  renderScenarioButtons();
+  renderYearSelects();
+  renderAll(true);
+
+  // First refresh: attempt FX + prices (non-blocking but immediate)
+  // Note: GitHub Pages is fine with this; APIs are public and may rate-limit.
+  refreshAllPrices();
+
+})();
+</script>
+</body>
+</html>
